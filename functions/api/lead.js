@@ -40,18 +40,20 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Normaliza e valida WhatsApp BR: 13 dígitos (55 + DDD + 9XXXXXXXX)
+    // Normaliza e valida WhatsApp BR: 11 dígitos (DDD + 9 + 8 dígitos).
+    // Aceita payload com ou sem prefixo "55" (compat) e SEMPRE envia 11
+    // dígitos pra AC/Clint — Typebot/AC adicionam +55 por conta própria.
     let phoneDigits = String(phone).replace(/\D/g, '');
-    if (phoneDigits.length === 11 && /^[1-9]{2}9\d{8}$/.test(phoneDigits)) {
-      phoneDigits = '55' + phoneDigits;
+    if (phoneDigits.length === 13 && phoneDigits.startsWith('55')) {
+      phoneDigits = phoneDigits.slice(2);
     }
-    if (!/^55[1-9]{2}9\d{8}$/.test(phoneDigits)) {
+    if (!/^[1-9]{2}9\d{8}$/.test(phoneDigits)) {
       return new Response(
         JSON.stringify({ error: 'invalid_phone' }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
-    const phoneE164 = phoneDigits;
+    const phoneOut = phoneDigits;
 
     // ── ActiveCampaign ──
     const AC_API_URL  = (context.env && context.env.AC_API_URL)  || 'https://SEU_DOMINIO.api-us1.com';
@@ -73,7 +75,7 @@ export async function onRequestPost(context) {
               email,
               firstName: name.split(' ')[0],
               lastName:  name.split(' ').slice(1).join(' ') || '',
-              phone: phoneE164,
+              phone: phoneOut,
             },
           }),
         });
@@ -113,7 +115,7 @@ export async function onRequestPost(context) {
           body: JSON.stringify({
             nome: name,
             email,
-            phone: phoneE164,
+            phone: phoneOut,
             formacao: formacao || '',
             utm_source:   utm_source   || '',
             utm_medium:   utm_medium   || '',
