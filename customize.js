@@ -235,11 +235,12 @@ const CUSTOM_JS = `
       var utms = getUTMs();
       var name     = form.querySelector('[name="name"]').value.trim();
       var email    = form.querySelector('[name="email"]').value.trim();
-      var phoneOut = phoneDigits;
+      var phoneE164    = '55' + phoneDigits;
+      var phoneTypebot = phoneDigits;
       var formacao = form.querySelector('[name="formacao"]').value;
 
       var data = {
-        name: name, email: email, phone: phoneOut, formacao: formacao,
+        name: name, email: email, phone: phoneE164, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term,
         utm_content: utms.utm_content
@@ -247,7 +248,7 @@ const CUSTOM_JS = `
 
       // Payload para Clint (fallback direto) — usa "nome" em português
       var clintPayload = {
-        nome: name, email: email, phone: phoneOut, formacao: formacao,
+        nome: name, email: email, phone: phoneE164, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term,
         utm_content: utms.utm_content
@@ -259,7 +260,7 @@ const CUSTOM_JS = `
         body: JSON.stringify(data)
       })
       .then(function(r){ if(!r.ok) throw new Error(r.status); return r; })
-      .then(function(){ redirect(name, email, phoneOut, formacao, utms); })
+      .then(function(){ redirect(name, email, phoneTypebot, formacao, utms); })
       .catch(function(){
         try {
           navigator.sendBeacon(
@@ -267,7 +268,7 @@ const CUSTOM_JS = `
             new Blob([JSON.stringify(clintPayload)], {type: 'application/json'})
           );
         } catch(_){}
-        redirect(name, email, phoneOut, formacao, utms);
+        redirect(name, email, phoneTypebot, formacao, utms);
       });
     });
 
