@@ -33,13 +33,25 @@ export async function onRequestPost(context) {
       utm_source, utm_medium, utm_campaign, utm_term, utm_content,
     } = body;
 
-    const phoneDigits = (phone || '').replace(/\D/g, '');
-    if (!name || !email || !phone || phoneDigits.length < 10) {
+    if (!name || !email || !phone) {
       return new Response(
-        JSON.stringify({ error: 'Campos obrigatorios: name, email, phone (min 10 digitos)' }),
+        JSON.stringify({ error: 'Campos obrigatorios: name, email, phone' }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
+
+    // Normaliza e valida WhatsApp BR: 13 dígitos (55 + DDD + 9XXXXXXXX)
+    let phoneDigits = String(phone).replace(/\D/g, '');
+    if (phoneDigits.length === 11 && /^[1-9]{2}9\d{8}$/.test(phoneDigits)) {
+      phoneDigits = '55' + phoneDigits;
+    }
+    if (!/^55[1-9]{2}9\d{8}$/.test(phoneDigits)) {
+      return new Response(
+        JSON.stringify({ error: 'invalid_phone' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    const phoneE164 = phoneDigits;
 
     // ── ActiveCampaign ──
     const AC_API_URL  = (context.env && context.env.AC_API_URL)  || 'https://SEU_DOMINIO.api-us1.com';
@@ -61,7 +73,7 @@ export async function onRequestPost(context) {
               email,
               firstName: name.split(' ')[0],
               lastName:  name.split(' ').slice(1).join(' ') || '',
-              phone,
+              phone: phoneE164,
             },
           }),
         });
@@ -101,7 +113,7 @@ export async function onRequestPost(context) {
           body: JSON.stringify({
             nome: name,
             email,
-            phone,
+            phone: phoneE164,
             formacao: formacao || '',
             utm_source:   utm_source   || '',
             utm_medium:   utm_medium   || '',

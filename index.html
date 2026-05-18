@@ -184,6 +184,9 @@
   }
   .lead-field input:invalid:not(:placeholder-shown),
   .lead-field select:invalid:not(:focus) { border-color: rgba(199, 60, 60, 0.5); }
+  .lead-field input[aria-invalid="true"] { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
+  .lead-field__error { color: #dc2626; font-size: 0.85rem; margin-top: 0.25rem; }
+  .lead-field__error[hidden] { display: none; }
   .lead-field__select { position: relative; }
   .lead-field__select select {
     appearance: none; -webkit-appearance: none; -moz-appearance: none;
@@ -303,7 +306,8 @@
       </label>
       <label class="lead-field">
         <span class="lead-field__label">WhatsApp com DDD</span>
-        <input type="tel" name="phone" required autocomplete="tel" placeholder="(00) 00000-0000" />
+        <input type="tel" name="phone" required autocomplete="tel" inputmode="numeric" maxlength="16" placeholder="(00) 90000-0000" aria-describedby="lead-phone-error" />
+        <span class="lead-field__error" id="lead-phone-error" hidden></span>
       </label>
       <label class="lead-field">
         <span class="lead-field__label">Formação</span>
@@ -334,6 +338,9 @@
   var SELO_MEC = 'https://www.vanusacardoso.com.br/wp-content/uploads/2023/08/SELO-MEC-1024x1024.png';
   // Webhook Clint da UAG — preservado do código original
   var CLINT_WEBHOOK = 'https://functions-api.clint.digital/endpoints/integration/webhook/c8a92c25-f534-4dfd-aa4c-64676173359b';
+  // Validação BR: 11 dígitos (DDD 1-9, terceiro = 9 do celular pós-ANATEL 2012)
+  var BR_MOBILE_RE = /^[1-9]{2}9\d{8}$/;
+  var PHONE_ERROR_MSG = 'Informe um WhatsApp válido com DDD (11 dígitos, começando com 9). Ex: (48) 99845-9812';
 
   function maskPhone(v){
     v = v.replace(/\D/g,'').slice(0,11);
@@ -415,13 +422,34 @@
     setTimeout(renameCtas, 400);
     setTimeout(renameCtas, 1200);
 
+    var errorEl = document.getElementById('lead-phone-error');
+    function setPhoneError(msg){
+      if(phoneInput) phoneInput.setAttribute('aria-invalid','true');
+      if(errorEl){ errorEl.textContent = msg; errorEl.hidden = false; }
+    }
+    function clearPhoneError(){
+      if(phoneInput) phoneInput.removeAttribute('aria-invalid');
+      if(errorEl){ errorEl.textContent = ''; errorEl.hidden = true; }
+    }
+
     if(phoneInput){
-      phoneInput.addEventListener('input', function(){ phoneInput.value = maskPhone(phoneInput.value); });
+      phoneInput.addEventListener('input', function(){
+        phoneInput.value = maskPhone(phoneInput.value);
+        clearPhoneError();
+      });
     }
 
     form.addEventListener('submit', function(e){
       e.preventDefault();
       if(!form.checkValidity()){ form.reportValidity(); return; }
+
+      var phoneDigits = (phoneInput.value || '').replace(/\D/g,'');
+      if(!BR_MOBILE_RE.test(phoneDigits)){
+        setPhoneError(PHONE_ERROR_MSG);
+        phoneInput.focus();
+        return;
+      }
+
       submitBtn.disabled = true;
       var span = submitBtn.querySelector('span');
       if(span) span.textContent = 'ENVIANDO...';
@@ -429,16 +457,16 @@
       var utms = getUTMs();
       var name     = form.querySelector('[name="name"]').value.trim();
       var email    = form.querySelector('[name="email"]').value.trim();
-      var phone    = form.querySelector('[name="phone"]').value.trim();
+      var phoneE164 = '55' + phoneDigits;
       var formacao = form.querySelector('[name="formacao"]').value;
 
       var data = {
-        name: name, email: email, phone: phone, formacao: formacao,
+        name: name, email: email, phone: phoneE164, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term, utm_content: utms.utm_content
       };
       var clintPayload = {
-        nome: name, email: email, phone: phone, formacao: formacao,
+        nome: name, email: email, phone: phoneE164, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term, utm_content: utms.utm_content
       };
@@ -448,12 +476,12 @@
         body: JSON.stringify(data)
       })
       .then(function(r){ if(!r.ok) throw new Error(r.status); return r; })
-      .then(function(){ redirect(name, email, phone, formacao, utms); })
+      .then(function(){ redirect(name, email, phoneE164, formacao, utms); })
       .catch(function(){
         try {
           navigator.sendBeacon(CLINT_WEBHOOK, new Blob([JSON.stringify(clintPayload)], {type: 'application/json'}));
         } catch(_){}
-        redirect(name, email, phone, formacao, utms);
+        redirect(name, email, phoneE164, formacao, utms);
       });
     });
   }

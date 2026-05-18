@@ -79,7 +79,8 @@ const MODAL_HTML = `
     <form id="lead-form" novalidate>
       <input class="modal-field" type="text"  name="name"     placeholder="Nome completo" required autocomplete="name">
       <input class="modal-field" type="email" name="email"    placeholder="E-mail" required autocomplete="email">
-      <input class="modal-field" type="tel"   name="phone"    placeholder="(00) 00000-0000" required autocomplete="tel">
+      <input class="modal-field" type="tel"   name="phone"    placeholder="(00) 90000-0000" required autocomplete="tel" inputmode="numeric" maxlength="16" aria-describedby="lead-phone-error">
+      <span class="modal-field-error" id="lead-phone-error" hidden></span>
       <select class="modal-field" name="formacao" required>
         <option value="" disabled selected>Formação</option>
         <option value="graduacao-em-andamento">Graduação em andamento</option>
@@ -201,30 +202,44 @@ const CUSTOM_JS = `
     // Máscara telefone
     phoneInput.addEventListener('input', function(){ phoneInput.value = maskPhone(phoneInput.value); });
 
+    // Validação BR: 11 dígitos (DDD 1-9, terceiro = 9 do celular pós-ANATEL 2012)
+    var BR_MOBILE_RE = /^[1-9]{2}9\\d{8}$/;
+    var PHONE_ERROR_MSG = 'Informe um WhatsApp válido com DDD (11 dígitos, começando com 9). Ex: (48) 99845-9812';
+    var errorEl = document.getElementById('lead-phone-error');
+    function setPhoneError(msg){
+      if(phoneInput) phoneInput.setAttribute('aria-invalid','true');
+      if(errorEl){ errorEl.textContent = msg; errorEl.hidden = false; }
+    }
+    function clearPhoneError(){
+      if(phoneInput) phoneInput.removeAttribute('aria-invalid');
+      if(errorEl){ errorEl.textContent = ''; errorEl.hidden = true; }
+    }
+    if(phoneInput) phoneInput.addEventListener('input', clearPhoneError);
+
     // Submit
     form.addEventListener('submit', function(e){
       e.preventDefault();
       if(!form.reportValidity()) return;
       var btn = form.querySelector('.modal-submit');
+
+      var phoneDigits = (phoneInput.value || '').replace(/\\D/g,'');
+      if(!BR_MOBILE_RE.test(phoneDigits)){
+        setPhoneError(PHONE_ERROR_MSG);
+        phoneInput.focus();
+        return;
+      }
+
       btn.disabled = true;
       btn.textContent = 'ENVIANDO...';
 
       var utms = getUTMs();
       var name     = form.querySelector('[name="name"]').value.trim();
       var email    = form.querySelector('[name="email"]').value.trim();
-      var phone    = form.querySelector('[name="phone"]').value.trim();
+      var phoneE164 = '55' + phoneDigits;
       var formacao = form.querySelector('[name="formacao"]').value;
 
-      if (phone.replace(/\D/g, '').length < 10) {
-        btn.disabled = false;
-        btn.textContent = 'QUERO MAIS INFORMAÇÕES';
-        form.querySelector('[name="phone"]').focus();
-        alert('Por favor, informe um telefone válido com DDD (10 ou 11 dígitos).');
-        return;
-      }
-
       var data = {
-        name: name, email: email, phone: phone, formacao: formacao,
+        name: name, email: email, phone: phoneE164, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term,
         utm_content: utms.utm_content
@@ -232,7 +247,7 @@ const CUSTOM_JS = `
 
       // Payload para Clint (fallback direto) — usa "nome" em português
       var clintPayload = {
-        nome: name, email: email, phone: phone, formacao: formacao,
+        nome: name, email: email, phone: phoneE164, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term,
         utm_content: utms.utm_content
@@ -244,7 +259,7 @@ const CUSTOM_JS = `
         body: JSON.stringify(data)
       })
       .then(function(r){ if(!r.ok) throw new Error(r.status); return r; })
-      .then(function(){ redirect(name, email, phone, formacao, utms); })
+      .then(function(){ redirect(name, email, phoneE164, formacao, utms); })
       .catch(function(){
         try {
           navigator.sendBeacon(
@@ -252,7 +267,7 @@ const CUSTOM_JS = `
             new Blob([JSON.stringify(clintPayload)], {type: 'application/json'})
           );
         } catch(_){}
-        redirect(name, email, phone, formacao, utms);
+        redirect(name, email, phoneE164, formacao, utms);
       });
     });
 
