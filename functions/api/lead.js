@@ -40,14 +40,15 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Normaliza e valida WhatsApp BR e envia 13 dígitos (55 + DDD + 9 + 8)
-    // pra AC e Clint — CRMs precisam do prefixo 55 pra reconhecer como
-    // número BR e popular o campo Telefone.
+    // Normaliza e valida WhatsApp BR: aceita 10 ou 11 dígitos (sem forçar
+    // o 9). DDD começa com 1-9. Strip de "55" prefixado (compat).
     let phoneDigits = String(phone).replace(/\D/g, '');
-    if (phoneDigits.length === 11 && /^[1-9]{2}9\d{8}$/.test(phoneDigits)) {
-      phoneDigits = '55' + phoneDigits;
+    if (phoneDigits.length === 12 && phoneDigits.startsWith('55')) {
+      phoneDigits = phoneDigits.slice(2);
+    } else if (phoneDigits.length === 13 && phoneDigits.startsWith('55')) {
+      phoneDigits = phoneDigits.slice(2);
     }
-    if (!/^55[1-9]{2}9\d{8}$/.test(phoneDigits)) {
+    if (!/^[1-9]{2}\d{8,9}$/.test(phoneDigits)) {
       return new Response(
         JSON.stringify({ error: 'invalid_phone' }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }

@@ -202,9 +202,9 @@ const CUSTOM_JS = `
     // Máscara telefone
     phoneInput.addEventListener('input', function(){ phoneInput.value = maskPhone(phoneInput.value); });
 
-    // Validação BR: 11 dígitos (DDD 1-9, terceiro = 9 do celular pós-ANATEL 2012)
-    var BR_MOBILE_RE = /^[1-9]{2}9\\d{8}$/;
-    var PHONE_ERROR_MSG = 'Informe um WhatsApp válido com DDD (11 dígitos, começando com 9). Ex: (48) 99845-9812';
+    // Validação BR: 10 ou 11 dígitos (DDD + número). Não força o 9 do celular.
+    var BR_PHONE_RE = /^[1-9]{2}\\d{8,9}$/;
+    var PHONE_ERROR_MSG = 'Informe um WhatsApp válido com DDD (10 ou 11 dígitos). Ex: (48) 99845-9812';
     var errorEl = document.getElementById('lead-phone-error');
     function setPhoneError(msg){
       if(phoneInput) phoneInput.setAttribute('aria-invalid','true');
@@ -223,7 +223,7 @@ const CUSTOM_JS = `
       var btn = form.querySelector('.modal-submit');
 
       var phoneDigits = (phoneInput.value || '').replace(/\\D/g,'');
-      if(!BR_MOBILE_RE.test(phoneDigits)){
+      if(!BR_PHONE_RE.test(phoneDigits)){
         setPhoneError(PHONE_ERROR_MSG);
         phoneInput.focus();
         return;
@@ -235,12 +235,11 @@ const CUSTOM_JS = `
       var utms = getUTMs();
       var name     = form.querySelector('[name="name"]').value.trim();
       var email    = form.querySelector('[name="email"]').value.trim();
-      var phoneE164    = '55' + phoneDigits;
-      var phoneTypebot = phoneDigits;
+      var phoneOut = phoneDigits;
       var formacao = form.querySelector('[name="formacao"]').value;
 
       var data = {
-        name: name, email: email, phone: phoneE164, formacao: formacao,
+        name: name, email: email, phone: phoneOut, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term,
         utm_content: utms.utm_content
@@ -248,7 +247,7 @@ const CUSTOM_JS = `
 
       // Payload para Clint (fallback direto) — usa "nome" em português
       var clintPayload = {
-        nome: name, email: email, phone: phoneE164, formacao: formacao,
+        nome: name, email: email, phone: phoneOut, formacao: formacao,
         utm_source: utms.utm_source, utm_medium: utms.utm_medium,
         utm_campaign: utms.utm_campaign, utm_term: utms.utm_term,
         utm_content: utms.utm_content
@@ -260,7 +259,7 @@ const CUSTOM_JS = `
         body: JSON.stringify(data)
       })
       .then(function(r){ if(!r.ok) throw new Error(r.status); return r; })
-      .then(function(){ redirect(name, email, phoneTypebot, formacao, utms); })
+      .then(function(){ redirect(name, email, phoneOut, formacao, utms); })
       .catch(function(){
         try {
           navigator.sendBeacon(
@@ -268,7 +267,7 @@ const CUSTOM_JS = `
             new Blob([JSON.stringify(clintPayload)], {type: 'application/json'})
           );
         } catch(_){}
-        redirect(name, email, phoneTypebot, formacao, utms);
+        redirect(name, email, phoneOut, formacao, utms);
       });
     });
 
