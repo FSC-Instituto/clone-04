@@ -40,15 +40,15 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Normaliza e valida WhatsApp BR: aceita 10 ou 11 dígitos (sem forçar
-    // o 9). DDD começa com 1-9. Strip de "55" prefixado (compat).
+    // Normaliza e valida WhatsApp BR: exige exatamente 11 dígitos (DDD + 9
+    // dígitos — regra do 9 obrigatória desde 2017). Strip de "55" prefixado (compat).
     let phoneDigits = String(phone).replace(/\D/g, '');
     if (phoneDigits.length === 12 && phoneDigits.startsWith('55')) {
       phoneDigits = phoneDigits.slice(2);
     } else if (phoneDigits.length === 13 && phoneDigits.startsWith('55')) {
       phoneDigits = phoneDigits.slice(2);
     }
-    if (!/^[1-9]{2}\d{8,9}$/.test(phoneDigits)) {
+    if (!/^[1-9]{2}\d{9}$/.test(phoneDigits)) {
       return new Response(
         JSON.stringify({ error: 'invalid_phone' }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }

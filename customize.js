@@ -103,8 +103,7 @@ const CUSTOM_JS = `
   // Util — máscara (00) 00000-0000
   function maskPhone(v){
     v = v.replace(/\\D/g,'').slice(0,11);
-    if(v.length>10) return v.replace(/(\\d{2})(\\d{5})(\\d{0,4}).*/,'($1) $2-$3');
-    if(v.length>6)  return v.replace(/(\\d{2})(\\d{4})(\\d{0,4}).*/,'($1) $2-$3');
+    if(v.length>7)  return v.replace(/(\\d{2})(\\d{5})(\\d{0,4}).*/,'($1) $2-$3');
     if(v.length>2)  return v.replace(/(\\d{2})(\\d{0,5}).*/,'($1) $2');
     if(v.length>0)  return v.replace(/(\\d{0,2}).*/,'($1');
     return '';
@@ -202,9 +201,10 @@ const CUSTOM_JS = `
     // Máscara telefone
     phoneInput.addEventListener('input', function(){ phoneInput.value = maskPhone(phoneInput.value); });
 
-    // Validação BR: 10 ou 11 dígitos (DDD + número). Não força o 9 do celular.
-    var BR_PHONE_RE = /^[1-9]{2}\\d{8,9}$/;
-    var PHONE_ERROR_MSG = 'Informe um WhatsApp válido com DDD (10 ou 11 dígitos). Ex: (48) 99845-9812';
+    // Validação BR: exige exatamente 11 dígitos (DDD + 9 dígitos — regra do 9
+    // obrigatória desde 2017 em todos os estados). DDD deve começar com 1-9.
+    var BR_PHONE_RE = /^[1-9]{2}\\d{9}$/;
+    var PHONE_ERROR_MSG = 'Informe um WhatsApp válido com DDD e 11 dígitos. Ex: (48) 99845-9812';
     var errorEl = document.getElementById('lead-phone-error');
     function setPhoneError(msg){
       if(phoneInput) phoneInput.setAttribute('aria-invalid','true');
